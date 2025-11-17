@@ -1,87 +1,137 @@
-## 非公開APIの利用方法
+# 非公開APIの利用方法
 
-**本文**
-
-* テーマ：Androidの**非公開API**
-* フォーカス：
-
-  1. やりかた（リフレクション）
-  2. やりかた（スタブ）
-  3. できる理由（昔）
-  4. 残念：今はできない
-  5. できなくなった理由（しくみ）
+🎺ぱふぱふ🎺
 
 ---
 
-## スライド2：やりかた説明（リフレクション）
+# やりかた（つまんない）
 
-**非公開APIを“名前指定”で呼ぶ**
-
-**本文（概要サンプル）**
+1. リフレクションで呼ぶ
 
 ```kotlin
-@SuppressLint("BlockedPrivateApi")
 fun getSysProp(key: String): String? = try {
-    val cls = Class.forName("android.os.SystemProperties")
-    val get = cls.getMethod("get", String::class.java)
-    get.invoke(null, key) as String
+    val cls = Class.forName("android.os.SystemProperties")  // 非公開APIのクラスオブジェクト取得
+    val get = cls.getMethod("get", String::class.java)      // 非公開API取得
+    get.invoke(null, key) as String                         // 非公開API実行
 } catch (t: Throwable) { null }
 ```
 
-* ポイント：**完全修飾名＋メソッドシグネチャ**が分かれば呼べる
-* 但し：**互換性・審査・端末差のリスク大**
+→ ださい
 
 ---
 
-## スライド3：やりかた説明（スタブ）
+# やりかた（かっこいい）
 
-**コンパイルだけ通す“名前解決ダミー”**
-
-**本文（概要サンプル）**
+1. コンパイルだけ通す“名前解決ダミー”を用意する
 
 ```java
 // :hidden-stubs/src/main/java/android/os/SystemProperties.java
 package android.os;
 public final class SystemProperties {
-  private SystemProperties() {}
-  public static String get(String key) {
-    throw new UnsupportedOperationException("stub");
+  public static String get(String key) { // 非公開API
+    throw new UnsupportedOperationException("stub");  // 中身は適当
   }
 }
+
+// app/build.gradle.kts
+dependencies { compileOnly(project(":hidden-stubs")) } // APKに含めない
 ```
+
+2. "名前解決ダミー”を呼び出す
 
 ```kotlin
-// app/build.gradle.kts
-dependencies { compileOnly(project(":hidden-stubs")) } // APKに入れない
+// :app/src/main/java/android/iuchi/hoge.kt
+fun hoge(sp: SystemProperties) : String = sp.get("hoge")
 ```
 
-* **同FQCN／同シグネチャ**で用意
-* 役割：**IDE補完・型安全・ビルド通過**（実機呼び出しは別経路）
-* 鉄則：**compileOnly**でAPK混入禁止
+→ かっこいい
 
 ---
 
-## スライド4：できる理由（昔）→ 残念：今はできない
+# しくみ（Java編）
 
-**昔（〜Android 8.1）**
+Javaのライブラリ呼び出しの仕組み
 
-* `@hide`＝**SDK(android.jar)に載せないだけ**
-* 実体は端末に存在 → **リフレクションで到達可能**
+1. ライブラリのバイトコードに“名前・型情報”が入っている
+2. コンパイル時に「名前」で型解決/検証
+3. 実行時に「名前 → メタデータ → 実体」へ解決して呼び出し
 
-**今（Android 9以降）**
-
-* **hidden API 制限**により**実行時でブロック**（`IllegalAccessError` 等）
-* **targetSdkを下げても**原則回避不可
-* **Playポリシー上も非推奨／リジェクト対象**
+→ 今回は2.部分を騙してる
 
 ---
 
-## スライド5：できなくなった理由（しくみ）
+# しくみ（Android編）
 
-**3層ガードで封鎖**
+* 非公開SDKの定義
 
-1. **SDK生成層**：`@hide` / `@SystemApi` / `@TestApi` → **metalava**が**公開SDKスタブから除外**
-2. **ビルド時フラグ層**：`hiddenapi-flags`（**greylist/blacklist/max-target-○** など）を各メンバに付与 → **BOOTCLASSPATH**に埋め込み
-3. **実行時（ART）強制層**：リフレクション/JNI参照時に**フラグ判定→アクセス拒否**
+```java
+// frameworks/base/core/java/android/view/Window.java
+    /** @hide */
+    @UnsupportedAppUsage
+    public void setCloseOnTouchOutside(boolean close) {
+        mCloseOnTouchOutside = close;
+        mSetCloseOnTouchOutside = true;
+    }
+```
 
-補足：`@UnsupportedAppUsage` は**プラットフォーム内の互換注釈**で、一般アプリの免罪符ではない。
+→ ビルドすると
+
+---
+
+# しくみ（Android編）
+
+* 非公開SDKの定義
+
+```java
+// frameworks/base/core/java/android/view/Window.java
+    /** @hide */
+    @UnsupportedAppUsage
+    public void setCloseOnTouchOutside(boolean close) {
+        mCloseOnTouchOutside = close;
+        mSetCloseOnTouchOutside = true;
+    }
+```
+
+ ↓ ビルドする
+
+* 端末用のバイナリ（framework.jarなど）
+
+```java
+public void setCloseOnTouchOutside(boolean close)
+```
+が含まれる
+
+* SDK用のバイナリ（android.jarなど）
+
+```java
+public void setCloseOnTouchOutside(boolean close)
+```
+が無い！
+
+→ すなわち・・・？？？
+
+---
+
+# しくみ（Android編）
+
+名前を解決すれば、非公開SDKだって呼び放題！！！
+
+🎺ぱふぱふ🎺
+
+---
+
+# でも・・・
+
+今のAndroidではできない
+
+→ 理由は？
+
+---
+
+# でも・・・
+
+今のAndroidではできない
+
+↓ 理由
+
+長くなるからまたいつか
