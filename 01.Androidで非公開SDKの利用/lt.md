@@ -4,6 +4,31 @@
 
 ---
 
+# はじめに
+
+みなさんLT資料を作り込んでて、
+
+LT発表のハードルが上がっているため、
+
+ハードルを下げることを使命に、
+
+"あえて"
+
+簡素にしています。
+
+---
+
+# 目次
+
+1. やりかた
+    - つまんないやりかた
+    - かっこいいやりかた
+2. 仕組み
+    - Javaの仕組み
+    - Androidの仕組み
+
+---
+
 # やりかた（つまんない）
 
 1. リフレクションで呼ぶ
@@ -37,7 +62,7 @@ public final class SystemProperties {
 dependencies { compileOnly(project(":hidden-stubs")) } // APKに含めない
 ```
 
-2. "名前解決ダミー”を呼び出す
+2. "名前解決ダミー”で非公開SDKを呼び出す
 
 ```kotlin
 // :app/src/main/java/android/iuchi/hoge.kt
@@ -51,6 +76,8 @@ fun hoge(sp: SystemProperties) : String = sp.get("hoge")
 # しくみ（Java編）
 
 Javaのライブラリ呼び出しの仕組み
+
+※AndroidアプリはJavaで書かれている
 
 1. ライブラリのバイトコードに“名前・型情報”が入っている
 2. コンパイル時に「名前」で型解決/検証
@@ -78,23 +105,9 @@ Javaのライブラリ呼び出しの仕組み
 
 ---
 
-# しくみ（Android編）
+# しくみ（Android編）（ビルドすると）
 
-* 非公開SDKの定義
-
-```java
-// frameworks/base/core/java/android/view/Window.java
-    /** @hide */
-    @UnsupportedAppUsage
-    public void setCloseOnTouchOutside(boolean close) {
-        mCloseOnTouchOutside = close;
-        mSetCloseOnTouchOutside = true;
-    }
-```
-
- ↓ ビルドする
-
-* 端末用のバイナリ（framework.jarなど）
+* 端末用（組み込みOS）のバイナリ（framework.jarなど）
 
 ```java
 public void setCloseOnTouchOutside(boolean close)
@@ -104,7 +117,7 @@ public void setCloseOnTouchOutside(boolean close)
 * SDK用のバイナリ（android.jarなど）
 
 ```java
-public void setCloseOnTouchOutside(boolean close)
+// public void setCloseOnTouchOutside(boolean close)
 ```
 が無い！
 
@@ -114,9 +127,12 @@ public void setCloseOnTouchOutside(boolean close)
 
 # しくみ（Android編）
 
-名前を解決すれば、非公開SDKだって呼び放題！！！
+非公開SDKは
 
-🎺ぱふぱふ🎺
+- SDK用のバイナリに入っていないだけで、
+- 実際の実行用バイナリには入っているので
+
+名前を解決さえすれば、非公開SDKだって呼び放題！！！
 
 ---
 
