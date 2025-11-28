@@ -53,13 +53,13 @@ fun getSysProp(key: String): String? = try {
 // :hidden-stubs/src/main/java/android/os/SystemProperties.java
 package android.os;
 public final class SystemProperties {
-  public static String get(String key) { // 非公開API
-    throw new UnsupportedOperationException("stub");  // 中身は適当
+  public static String get(String key) {                  // 非公開API
+    throw new UnsupportedOperationException("stub");      // 中身は適当
   }
 }
 
 // app/build.gradle.kts
-dependencies { compileOnly(project(":hidden-stubs")) } // APKに含めない
+dependencies { compileOnly(project(":hidden-stubs")) }    // APKに含めない
 ```
 
 2. "名前解決ダミー”で非公開SDKを呼び出す
